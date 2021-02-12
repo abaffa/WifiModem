@@ -17,6 +17,8 @@ to the Telnet server (function 2) then the modem emulation is not available as
 all AT commands will be passed through to the connected computer. If a modem
 connection is active then the Telnet server is disabled.
 
+This branch has a few modifications to work with the Altair-Duino kit from [https://www.adwaterandstir.com](www.adwaterandstir.com).
+
 ## Wiring the ESP8266
 
 I made this for a ESP-01 module (with the 8-pin header) but it should not be hard
@@ -43,15 +45,18 @@ connect pin 6 (RESET) via a pushbutton to ground (keep the resistor though).
 
 ## Initial setup
 
-Initial setup (i.e. connecting to the WiFi network) is done via the serial connection.
-Connect to the module's serial port at 9600 baud 8N1. After powering on, the module
-will show a list of visible WiFi networks and ask to enter the SSID and password
-to connect.
+Initial setup (i.e. connecting to the WiFi network) is done via WiFiManager.  When your ESP starts up, 
+it sets it up in Station mode and tries to connect to a previously saved Access Point
+If this is unsuccessful (or no previous network saved) it moves the ESP into Access Point 
+mode and spins up a DNS and WebServer (default ip 192.168.4.1)  Using any wifi enabled device with a 
+browser (computer, phone, tablet) connect to the newly created Access Point (called "Altair-Duino".)
+Because of the Captive Portal and the DNS server you will either get a 'Join to network' type of popup 
+or get any domain you try to access redirected to the configuration portal.  Choose one of the access points 
+scanned, enter password, click save.  ESP will try to connect. If successful, it relinquishes control back to 
+the Altair-Duino. If not, reconnect to AP and reconfigure.
 
-After the information is entered, the module will attempt to connect to the network
-and display its IP address if successful. The module is now fully active, using
-9600 baud 8N1 on the serial port. To change the serial parameters, connect to
-the module's web server (see below).
+## How It Looks
+![ESP8266 WiFi Captive Portal Homepage](http://i.imgur.com/YPvW9eql.png) ![ESP8266 WiFi Captive Portal Configuration](http://i.imgur.com/oicWJ4gl.png)
 
 ## Changing the WiFi network connection
 
@@ -60,12 +65,8 @@ to the network when it boots up. The LED will blink while connecting. If a conne
 can not be established, the module automatically goes into network configuration mode
 (same as during initial setup).
 
-If you wish to re-configure the WiFi network (i.e. select a different network), send
-an ESC (27) character over the serial port while the module is attempting to connect.
-Doing so will cause the module to go into network configuration mode.
-
-Note that network configuration is ALWAYS done at 9600 baud, 8N1 regardless of what
-the WiFi parameters were set to before.
+If you wish to re-configure the WiFi network (i.e. select a different network), using a web browser visit
+the following URL: http://[module-ip-address], scroll to the bottom and click Reset Wifi Settings.
 
 ## Configuring the serial connection
 
