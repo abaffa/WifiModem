@@ -56,7 +56,7 @@ scanned, enter password, click save.  ESP will try to connect. If successful, it
 the Altair-Duino. If not, reconnect to AP and reconfigure.
 
 ## How It Looks
-![ESP8266 WiFi Captive Portal Homepage](http://i.imgur.com/YPvW9eql.png) ![ESP8266 WiFi Captive Portal Configuration](http://i.imgur.com/oicWJ4gl.png)
+![ESP8266 WiFi Captive Portal Homepage](https://adwaterandstir.com/wp-content/uploads/2021/01/wifimanager1.jpg) ![ESP8266 WiFi Captive Portal Configuration](https://adwaterandstir.com/wp-content/uploads/2021/01/wifimanager2.jpg)
 
 ## Changing the WiFi network connection
 
