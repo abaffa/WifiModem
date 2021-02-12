@@ -66,7 +66,8 @@ can not be established, the module automatically goes into network configuration
 (same as during initial setup).
 
 If you wish to re-configure the WiFi network (i.e. select a different network), using a web browser visit
-the following URL: http://[module-ip-address], scroll to the bottom and click Reset Wifi Settings.
+the following URL: http://altair.local (if mDNS is enabled on your network), otherwise http://[module-ip-address], 
+scroll to the bottom and click Reset Wifi Settings.
 
 ## Configuring the serial connection
 
