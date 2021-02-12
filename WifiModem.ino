@@ -15,13 +15,16 @@
 // You should have received a copy of the GNU General Public License
 // along with this program; if not, write to the Free Software Foundation,
 // Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
+//
+// Modifications for use with Altair-Duino 
+// Copyright (C) 2021 Chris Davis
 // -----------------------------------------------------------------------------
 
 #include <ESP8266WiFi.h>
 #include <ESP8266WebServer.h>
 #include <ESP8266mDNS.h>
 #include <EEPROM.h>
-
+#include <WiFiManager.h>
 
 //how many clients should be able to telnet to this ESP8266
 #define MAX_SRV_CLIENTS 3
@@ -276,6 +279,9 @@ void handleRoot()
       s += "<li><a href=\"set?filterTelnet=yes\">Handle</a></li>\n";
       s += "<li><b>Pass through</b></li>\n";
     }
+
+  s += "</ul>\n<h2>Reset WiFi connection</h2>\n<ul>\n";
+  s += "<li><a href=\"set?resetWifi=yes\">Reset Wifi Settings</a></li>\n";
   
   s += "</ul>\n</body>\n</html>";
   webserver.send(200, "text/html", s);
@@ -317,6 +323,55 @@ void handleSet()
         SerialData.handleTelnetProtocol = 1;
       else if( webserver.argName(i) == "filterTelnet" && webserver.arg(i)=="no" )
         SerialData.handleTelnetProtocol = 0;
+      else if( webserver.argName(i) == "resetWifi" && webserver.arg(i)=="yes" )
+      {
+        String s;
+        s = ("<html>\n"
+             "<head>\n"
+             "<title>ESP8266 Telnet-to-Serial Bridge</title>\n"
+             "</head>\n"
+             "<body>\n"
+             "<h1>ESP8266 Telnet-to-Serial Bridge</h1>\n");
+        s += "<p id='demo'></p>\n\n";
+
+        s += "<script>\n";
+        s += "// Set the date we're counting down to\n";
+        s += "var countDownDate = new Date();\n";
+        s += "countDownDate.setSeconds( countDownDate.getSeconds() + 10 );\n";
+
+        s += "// Update the count down every 1 second\n";
+        s += "var x = setInterval(function() {\n";
+
+        s += "  // Get today's date and time\n";
+        s += "  var now = new Date().getTime();\n";
+    
+        s += "  // Find the distance between now and the count down date\n";
+        s += "  var distance = countDownDate - now;\n";
+    
+        s += "  // Time calculations for days, hours, minutes and seconds\n";
+        s += "  var days = Math.floor(distance / (1000 * 60 * 60 * 24));\n";
+        s += "  var hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));\n";
+        s += "  var minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));\n";
+        s += "  var seconds = Math.floor((distance % (1000 * 60)) / 1000);\n";
+    
+        s += "  // Output the result in an element with id=demo\n";
+        s += "  document.getElementById('demo').innerHTML = 'Reset WiFi in ' + seconds + 's ';\n";
+    
+        s += "  // If the count down is over, write some text \n";
+        s += "  if (distance < 0) {\n";
+        s += "    clearInterval(x);\n";
+        s += "    document.getElementById('demo').innerHTML = 'You may cycle power on your Altair-Duino and reconnect.';\n";
+        s += "  }\n";
+        s += "}, 1000);\n";
+        s += "</script>\n";
+        s += "</body>\n</html>";
+        webserver.send(200, "text/html", s);
+        delay(5000);
+        WiFiManager wifiManager;
+        wifiManager.resetSettings();
+        ok = false;
+        return;
+      }
       else if( webserver.argName(i) == "telnetTerminalType" )
         {
           int j;
@@ -397,63 +452,6 @@ void clearSerialBuffer()
   while( Serial.available()>0 ) { Serial.read(); delay(10); }
 }
 
-
-void GetWiFiData(const char *msg)
-{
-  clearSerialBuffer();
-
-  bool go = true;
-  while( go )
-  {
-     Serial.println(msg); 
-     Serial.println("Press C to configure WiFi connection information.\n");
-     
-     unsigned long t = millis()+2000;
-     while( millis()<t ) if( Serial.available()>0 && Serial.read()=='C' ) { go = false; break; }
-     yield();
-  }
-
-  Serial.println("Scanning for networks...");
-
-  WiFi.disconnect();
-  int n = WiFi.scanNetworks();
-  if (n == 0) {
-    Serial.println("No networks found.");
-  } else {
-    Serial.print(n);
-    Serial.println(" networks found:");
-    for (int i = 0; i < n; ++i) {
-      Serial.print(i + 1);
-      Serial.print(": ");
-      Serial.print(WiFi.SSID(i));
-      Serial.print(" (");
-      Serial.print(WiFi.RSSI(i));
-      Serial.print(")");
-      Serial.println((WiFi.encryptionType(i) == ENC_TYPE_NONE) ? " " : "*");
-      delay(10);
-    }
-  }
-  Serial.println("\n");
-  WiFi.disconnect();
-
-  clearSerialBuffer();
-  Serial.print("SSID: ");
-  readString(WifiData.ssid, 256, false);
-  Serial.println();
-
-  clearSerialBuffer();
-  Serial.print("Password: ");
-  readString(WifiData.key, 256, true);
-  Serial.println();
-
-  WifiData.magic = MAGICVAL;
-  SerialData.silent = false;
-  EEPROM.put(0, WifiData);
-  EEPROM.put(768, SerialData);
-  EEPROM.commit();
-}
-
-
 void setup() 
 {
   pinMode(LED_PIN, OUTPUT);
@@ -487,39 +485,8 @@ void setup()
       SerialData.telnetTerminalType[i]=0;
     }
   
-  // read WiFi info
-  WiFi.mode(WIFI_STA);
-  EEPROM.get(0, WifiData);
-  if( WifiData.magic != MAGICVAL ) 
-    GetWiFiData("WiFi connection information not configured.");
-
-  // start WiFi interface
-  while( WiFi.status() != WL_CONNECTED )
-  {
-    WiFi.begin(WifiData.ssid, WifiData.key);
-    uint8_t i = 0;
-
-    // try to connect to WiFi
-    while(WiFi.status() != WL_CONNECTED && i++ < 20 ) 
-    {
-      delay(250);
-      digitalWrite(LED_PIN, HIGH); 
-      delay(250);
-      digitalWrite(LED_PIN, LOW); 
-      if( Serial.available()>0 && Serial.read() == 27 ) break;
-    }
-
-    if( WiFi.status() != WL_CONNECTED )
-    {
-      char buffer[300];
-      if( i == 21 )
-        sprintf(buffer, "Could not connect to %s.", WifiData.ssid);
-      else
-        sprintf(buffer, "Received ESC during connect.");
-        
-      GetWiFiData(buffer);
-    }
-  }
+  WiFiManager wifiManager;
+  wifiManager.autoConnect("Altair-Duino");
 
   // if we get here then we're connected to WiFi
   digitalWrite(LED_PIN, HIGH); 
@@ -561,7 +528,7 @@ void setup()
     Serial.println('\n');
   }
 
-  MDNS.begin("esp8266");
+  MDNS.begin("altair");
   webserver.on("/", handleRoot);
   webserver.on("/set", handleSet);
   webserver.onNotFound(handleNotFound);
@@ -571,7 +538,8 @@ void setup()
   server.setNoDelay(true);
 
   resetModemState();
-
+  MDNS.addService( "http", "tcp", 80 ); 
+  
   // flush serial input buffer
   while( Serial.available() ) Serial.read();
 }
@@ -1370,6 +1338,8 @@ void loop()
 {
   uint8_t i;
 
+  MDNS.update( ); 
+  
   if( modemClient && modemClient.connected() )
     {
       // modem is connected. if telnet server has new client then reject
