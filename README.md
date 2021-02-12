@@ -46,7 +46,7 @@ connect pin 6 (RESET) via a pushbutton to ground (keep the resistor though).
 ## Initial setup
 
 Initial setup (i.e. connecting to the WiFi network) is done via WiFiManager.  When your ESP starts up, 
-it sets it up in Station mode and tries to connect to a previously saved Access Point
+it sets it up in Station mode and tries to connect to a previously saved Access Point.
 If this is unsuccessful (or no previous network saved) it moves the ESP into Access Point 
 mode and spins up a DNS and WebServer (default ip 192.168.4.1)  Using any wifi enabled device with a 
 browser (computer, phone, tablet) connect to the newly created Access Point (called "Altair-Duino".)
