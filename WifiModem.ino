@@ -484,6 +484,8 @@ void setup()
       while(i<99 && SerialData.telnetTerminalType[i]>=32 && SerialData.telnetTerminalType[i]<127) i++;
       SerialData.telnetTerminalType[i]=0;
     }
+
+  wifi_set_sleep_type(NONE_SLEEP_T);
   
   WiFiManager wifiManager;
   wifiManager.autoConnect("Altair-Duino");
