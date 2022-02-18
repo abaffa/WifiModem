@@ -18,6 +18,9 @@
 //
 // Modifications for use with Altair-Duino 
 // Copyright (C) 2021 Chris Davis
+//
+// Modifications for use with Baffa-1 and Baffa-2 Projects
+// Copyright (C) 2021 Augusto Baffa
 // -----------------------------------------------------------------------------
 
 #include <ESP8266WiFi.h>
@@ -168,7 +171,7 @@ void applySerialSettings()
 }
 
 
-const uint32_t   baud[]   = {110, 150, 300, 600, 1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200, 256000, 512000, 921600, 0};
+const uint32_t baud[]   = {110, 150, 300, 600, 1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200, 256000, 512000, 921600, 0};
 const int   bits[]   = {5, 6, 7, 8, 0};
 const char *parity[] = {"No parity", "Even parity", "Odd parity", NULL};
 const char *stop[]   = {"One stop bit", "Two stop bits", NULL};
@@ -182,10 +185,10 @@ void handleRoot()
 
   s = ("<html>\n"
        "<head>\n"
-       "<title>ESP8266 Telnet-to-Serial Bridge</title>\n"
+       "<title>Baffa-2 ESP8266 Module Telnet-to-Serial Bridge</title>\n"
        "</head>\n"
        "<body>\n"
-       "<h1>ESP8266 Telnet-to-Serial Bridge</h1>\n");
+       "<h1>Baffa-2 ESP8266 Module Telnet-to-Serial Bridge</h1>\n");
 
   s += "<h2>Baud rate</h1>\n<ul>\n";
   for(i=0; baud[i]; i++)
@@ -340,10 +343,10 @@ void handleSet()
         String s;
         s = ("<html>\n"
              "<head>\n"
-             "<title>ESP8266 Telnet-to-Serial Bridge</title>\n"
+             "<title>Baffa-2 ESP8266 Module Telnet-to-Serial Bridge</title>\n"
              "</head>\n"
              "<body>\n"
-             "<h1>ESP8266 Telnet-to-Serial Bridge</h1>\n");
+             "<h1>Baffa-2 ESP8266 Module Telnet-to-Serial Bridge</h1>\n");
         s += "<p id='demo'></p>\n\n";
 
         s += "<script>\n";
@@ -372,7 +375,7 @@ void handleSet()
         s += "  // If the count down is over, write some text \n";
         s += "  if (distance < 0) {\n";
         s += "    clearInterval(x);\n";
-        s += "    document.getElementById('demo').innerHTML = 'You may cycle power on your Altair-Duino and reconnect.';\n";
+        s += "    document.getElementById('demo').innerHTML = 'You may cycle power on your Baffa-2 and reconnect.';\n";
         s += "  }\n";
         s += "}, 1000);\n";
         s += "</script>\n";
@@ -425,52 +428,11 @@ void handleNotFound()
 }
 
 
-void readString(char *buffer, int buflen, bool password)
-{
-  int len = 0;
-  while( true )
-  {
-    if( Serial.available() )
-      {
-        char c = Serial.read();
-        if( c==10 || c==13 )
-          {
-            buffer[len] = 0;
-            return;
-          }
-        else if( (c==8 || c==127) && len>0 )
-          {
-            Serial.print(char(8)); Serial.print(' '); Serial.print(char(8));
-            len--;
-          }
-        else if( c >= 32 && len<buflen-1 )
-          {
-            buffer[len++] = c;
-            Serial.print(password ? '*' : c);
-          }
-      }
-    else
-      delay(10);
-      
-    yield();
-  }
-}
-
-
-void clearSerialBuffer()
-{
-  // empty the serial buffer
-  delay(100); 
-  while( Serial.available()>0 ) { Serial.read(); delay(10); }
-}
 
 void setup() 
 {
   pinMode(LED_PIN, OUTPUT);
   digitalWrite(LED_PIN, LOW);
-
-  // start serial interface with setup parameters (9600 baud 8N1)
-  Serial.begin(9600);
 
   // read serial info
   EEPROM.begin(1024);
@@ -501,22 +463,11 @@ void setup()
   wifi_set_sleep_type(NONE_SLEEP_T);
   
   WiFiManager wifiManager;
-  wifiManager.autoConnect("Altair-Duino");
+  wifiManager.autoConnect("baffa2");
 
   // if we get here then we're connected to WiFi
   digitalWrite(LED_PIN, HIGH); 
 
-  // if normal operation is different from 9600 8N1 then print info now
-  // (and again after switching)
-  if( !SerialData.silent && (SerialData.baud!=9600 || GetSerialConfig()!=SERIAL_8N1) )
-    {
-      Serial.print("\nConnected to network "); Serial.println(WifiData.ssid);
-      Serial.print("Listening on port 23 (telnet) at IP "); Serial.println(WiFi.localIP());
-      Serial.flush();
-    }
-
-  // re-start serial interface with normal operation parameters
-  Serial.end();
   Serial.begin(SerialData.baud, GetSerialConfig());
 
   if( !SerialData.silent )
@@ -543,7 +494,7 @@ void setup()
     Serial.println('\n');
   }
 
-  MDNS.begin("altair");
+  MDNS.begin("baffa2");
   webserver.on("/", handleRoot);
   webserver.on("/set", handleSet);
   webserver.onNotFound(handleNotFound);
@@ -606,7 +557,11 @@ void resetModemState()
   modemQuiet = false;
   modemVerbose = true;
   
-  if( modemClient.connected() ) modemClient.stop();
+  if( modemClient.connected() ) {
+    modemClient.stop();
+    modemReg[REG_CURLINESPEED] = 0;
+    printModemResult(E_NOCARRIER);
+  }
 }
 
 
@@ -923,6 +878,7 @@ void handleModemCommand()
                     {
                       modemClient.stop();
                       modemReg[REG_CURLINESPEED] = 0;
+                      printModemResult(E_NOCARRIER);
                     }
 
                   ptr++; if( cmd[ptr]=='T' || cmd[ptr]=='P' ) ptr++;
@@ -1005,7 +961,7 @@ void handleModemCommand()
                                 
                           if( modemReg[REG_LINESPEED]==0 )
                             {
-                              unsigned i = 0;
+                              unsigned int i = 0;
                               while( i<NSPEEDS && linespeeds[i]<SerialData.baud ) i++;
                               if( i==NSPEEDS )
                                 modemReg[REG_CURLINESPEED] = 255;
@@ -1062,6 +1018,7 @@ void handleModemCommand()
                         {
                           modemClient.stop();
                           modemReg[REG_CURLINESPEED] = 0;
+                          printModemResult(E_NOCARRIER);
                         }
                     }
 
@@ -1281,7 +1238,7 @@ void relayModemData()
       // if not sending in binary mode then a stand-alone CR (without LF) must be followd by NUL
       if( SerialData.handleTelnetProtocol && !modemTelnetState.sendBinary && buf[n-1] == 0x0d && !Serial.available() ) buf[n++] = 0;
 
-      modemClient.write(buf, n);
+      if(n>0) modemClient.write(buf, n);
     }
 }
 
@@ -1321,13 +1278,15 @@ void relayTelnetData()
               
           // if Telnet protocol handling is enabled then we need to duplicate IAC tokens
           // if they occur in the general data stream
-          if( b==T_IAC && SerialData.handleTelnetProtocol ) buf[n++] = b;
+          if(SerialData.handleTelnetProtocol > 0 &&  b==T_IAC) buf[n++] = b;
               
           // wait a short time to see if another character is coming in so we
           // can send multi-character (escape) sequences in the same packet
           t = millis();
           while( !Serial.available() && millis()-t < millisPerChar );
         }
+
+      if(n == 0)return;
 
       // push UART data to all connected telnet clients
       for (i = 0; i < MAX_SRV_CLIENTS; i++) 
@@ -1393,7 +1352,7 @@ void loop()
                   if( SerialData.handleTelnetProtocol>0 && SerialData.telnetDisableLocalEcho>0 )
                     {
                       byte buf[3] = {T_IAC, T_WILL, TO_ECHO};
-                      serverClients[i].write(buf, 3);
+                      serverClients[i].write(buf, sizeof(buf));
                     }
 
                   break;
